@@ -11,27 +11,26 @@ from   __future__         import print_function
 
 from   _TFL.pyk           import pyk
 
-from   rsclib.HTML_Parse  import tag, Page_Tree
 from   rsclib.autosuper   import autosuper
-from   spider.common      import Interface, Inet4, unroutable
+from   spider.common      import Interface, Inet4, unroutable, Soup_Client
 
-class Routes (Page_Tree) :
+class Routes (Soup_Client) :
     retries      = 2
     timeout      = 10
     url          = '/cgi-bin/index.cgi?post_routes=1'
 
     def parse (self) :
-        root  = self.tree.getroot ()
         self.ip_dev = {}
-        for pre in root.findall (".//%s" % tag ("pre")) :
+        for pre in self.soup.find_all ("pre") :
             state = 0
-            for a in pre :
-                if a.tag != tag ('a') :
-                    continue
-                if state == 0 and a.tail and 'scope link' in a.tail :
+            for a in pre.find_all ('a', recursive = False) :
+                if state == 0 :
+                    ns = a.next_sibling
+                    if ns.name or 'scope link' not in ns :
+                        continue
                     state = 1
                     found = False
-                    for w in a.tail.strip ().split () :
+                    for w in ns.strip ().split () :
                         if found :
                             devname = w
                             break
@@ -40,12 +39,12 @@ class Routes (Page_Tree) :
                     continue
                 if state == 1 :
                     if devname :
-                        self.ip_dev [a.text.strip ()] = devname
+                        self.ip_dev [a.string.strip ()] = devname
                     devname = None
                     state = 0
-        for sm in root.findall (".//%s" % tag ("small")) :
-            if sm.text :
-                s = sm.text.strip ()
+        for sm in self.soup.find_all ("small") :
+            if sm.string :
+                s = sm.string.strip ()
                 if s.startswith ('0xffolsr') :
                     self.version = s
                     break
@@ -53,50 +52,50 @@ class Routes (Page_Tree) :
 
 # end class Routes
 
-class Details (Page_Tree) :
+class Details (Soup_Client) :
     retries      = 2
     timeout      = 10
     url          = '/cgi-bin/index.cgi?post_olsr=1'
 
     def parse (self) :
-        root  = self.tree.getroot ()
         self.ip_dev = {}
         self.gw_ip  = {}
         self.metric = {}
-        for pre in root.findall (".//%s" % tag ("pre")) :
+        for pre in self.soup.find_all ("pre") :
             state = 0
-            assert 'Table: Links' in pre.text
-            for a in pre :
-                if a.tag != tag ('a') :
-                    continue
+            assert 'Table: Links' in pre.contents [0]
+            for a in pre.find_all ('a', recursive = False) :
                 if state == 0 :
                     state = 1
-                    ip = a.text
+                    ip = a.string
                 elif state == 1 :
                     state = 0
-                    if 'Table:' in a.tail :
+                    ns = a.next_sibling
+                    if not ns.name and 'Table:' in ns :
                         state = 2
                     assert ip
-                    self.gw_ip [a.text] = ip
+                    self.gw_ip [a.string] = ip
                     # LQ, NLQ, Cost, 0th parameter varies with version
-                    pars = a.tail.strip ().split () [1:4]
+                    pars = ns.strip ().split () [1:4]
                     pars = ((x, 'nan')[x == 'INFINITE'] for x in pars)
                     self.metric [ip] = [float (x) for x in pars]
                 elif state == 2 :
-                    if 'Table: Routes' in a.tail :
+                    ns = a.next_sibling
+                    if not ns.name and 'Table: Routes' in ns :
                         state = 3
                 elif state == 3 :
                     state = 4
-                    dst = a.text
+                    dst = a.string
                     if dst in self.gw_ip :
                         ip = self.gw_ip [dst]
                     else :
                         ip = None
                 elif state == 4 :
+                    ns = a.next_sibling
                     state = 3
                     if ip :
                         assert dst
-                        self.ip_dev [ip] = a.tail.strip ().split () [-1]
+                        self.ip_dev [ip] = ns.strip ().split () [-1]
     # end def parse
 
 # end class Details

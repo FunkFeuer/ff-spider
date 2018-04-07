@@ -8,16 +8,18 @@
 # #*** </License> ***********************************************************#
 
 from   __future__           import print_function
+from   __future__           import unicode_literals
 
 from   _TFL.pyk             import pyk
 
 import os
 import re
+import requests
 from   stat                 import ST_MTIME
 from   csv                  import DictWriter
 from   gzip                 import GzipFile
 from   datetime             import datetime
-from   rsclib.HTML_Parse    import tag, Page_Tree
+from   bs4                  import BeautifulSoup
 from   rsclib.stateparser   import Parser
 from   rsclib.autosuper     import autosuper
 from   rsclib.IP_Address    import IP4_Address
@@ -26,6 +28,7 @@ from   spider.olsr_httpinfo import OLSR
 from   spider.backfire      import Backfire
 from   spider.openwrt       import OpenWRT
 from   spider.routeros      import Router_OS
+from   argparse             import ArgumentParser
 
 # for pickle
 from   spider.common      import Interface, Net_Link, Inet4, Inet6, WLAN_Config
@@ -34,7 +37,19 @@ from   spider.freifunk    import Interface_Config, WLAN_Config_Freifunk
 
 site_template = 'http://%(ip)s'
 
-class First_Guess (Page_Tree) :
+class Soup_Client (autosuper) :
+
+    def make_soup (self, url) :
+        r = requests.get (url)
+        if not r.ok :
+            raise ValueError \
+                ("Invalid Status: %s/%s" % (r.status_code, r.reason))
+        self.soup = BeautifulSoup (r.text, 'html.parser')
+    # end def make_soup
+
+# end class Soup_Client
+
+class First_Guess (Soup_Client) :
     url     = ''
     delay   = 0
     retries = 2
@@ -44,50 +59,50 @@ class First_Guess (Page_Tree) :
     status_ok  = 0
 
     def __init__ (self, rqinfo, site, url, port = 0) :
+        self.__super.__init__ (site = site, url = url)
         self.rqinfo = rqinfo
         if port :
             site = "%s:%s" % (site, port)
         self.params = dict (request = self.rqinfo, site = site)
-        self.__super.__init__ (site = site, url = url)
+        self.url    = '/'.join ((site, url))
+        self.make_soup (self.url)
+        self.parse ()
     # end def __init__
 
     def parse (self) :
         self.backend = None
-        root  = self.tree.getroot ()
-        #print (self.tree_as_string (root))
-        title = root.find (".//%s" % tag ("title"))
+        title = self.soup.title
         t     = 'olsr.org httpinfo plugin'
-        if title is not None and title.text and title.text.strip () == t :
+        if title is not None and title.string and title.string.strip () == t :
             self.backend = 'OLSR'
             self.params.update (site = self.url)
         for trial in self.try_luci, self.try_freifunk, self.try_router_os :
             if not self.backend :
-                trial (root)
+                trial (self.soup)
         if not self.backend :
-            #print (self.tree_as_string (root))
             raise ValueError ("Unknown Web Frontend")
     # end def parse
 
     def try_freifunk (self, root) :
-        for big in root.findall (".//%s" % tag ("big")) :
-            if big.get ('class') == 'plugin' :
+        for big in root.find_all ("big") :
+            if 'plugin' in big.get ('class') :
                 self.backend = "Freifunk"
                 break
         # Best effort to find status url
-        for a in root.findall (".//%s" % tag ("a")) :
-            if a.get ('class') == 'plugin' :
+        for a in root.find_all ("a") :
+            if a.get ('class') and 'plugin' in a.get ('class') :
                 # Allow 'Status klassisch' to override status
                 # even if found first
-                if a.text == 'Status klassisch' :
+                if a.string == 'Status klassisch' :
                     self.status_url = a.get ('href')
                     self.status_ok = 1
-                elif a.text == 'Status' and not self.status_ok :
+                elif a.string == 'Status' and not self.status_ok :
                     self.status_url = a.get ('href')
         self.params.update (url = self.status_url)
     # end def try_freifunk
 
     def try_luci (self, root) :
-        for meta in root.findall (".//%s" % tag ("meta")) :
+        for meta in root.find_all ("meta") :
             if meta.get ('http-equiv') == 'refresh' :
                 c = meta.get ('content')
                 if c and c.endswith ('cgi-bin/luci') :
@@ -110,29 +125,29 @@ class First_Guess (Page_Tree) :
 
     def try_router_os (self, root) :
         score = 0
-        for td in root.findall (".//%s" % tag ("td")) :
-            if td.text in self.router_os_scores :
-                score += self.router_os_scores [td.text]
+        for td in root.find_all ("td") :
+            if td.string in self.router_os_scores :
+                score += self.router_os_scores [td.string]
             if score > 3 :
                 self.backend = 'Router_OS'
                 break
         else :
-            for form in root.findall (".//%s" % tag ("form")) :
+            for form in root.find_all ("form") :
                 if form.get ('action') == "/login.cgi" :
                     self.backend = 'Router_OS'
                     self.params.update (url = 'cgi-bin/index.sh')
                     break
             else :
                 return
-        for a in root.findall (".//%s" % tag ("a")) :
-            if a.text in ('OLSR-Routen', 'OLSR-Routen (IPv4)') :
+        for a in root.find_all ("a") :
+            if a.string in ('OLSR-Routen', 'OLSR-Routen (IPv4)') :
                 self.params.update (url = a.get ('href').split ('?') [0])
                 break
     # end def try_router_os
 
 # end class First_Guess
 
-class Luci_Guess (Page_Tree) :
+class Luci_Guess (Soup_Client) :
     delay        = 0
     retries      = 2
     timeout      = 10
@@ -140,19 +155,25 @@ class Luci_Guess (Page_Tree) :
     html_charset = 'utf-8' # force utf-8 encoding
 
     def __init__ (self, rqinfo, site, url = None) :
+        self.__super.__init__ (site = site, url = url)
         self.rqinfo = rqinfo
         self.params = dict (request = self.rqinfo, site = site)
-        self.__super.__init__ (site = site, url = url)
+        if url is None :
+            url = self.url
+        self.url = '/'.join ((site, url))
+        self.make_soup (self.url)
+        self.parse ()
     # end def __init__
 
     def parse (self) :
         self.backend = 'Backfire'
-        root  = self.tree.getroot ()
-        #print (self.tree_as_string (root))
-        for h in root.findall (".//%s" % tag ('div')) :
+        for h in self.soup.find_all ('div') :
             if h.get ('id') == 'header' :
-                for p in h :
-                    if p.tag not in (tag ('p'), tag ('h1')) :
+                for p in h.contents :
+                    # p is already a tag (with a name) or a string
+                    if p.name is None :
+                        continue
+                    if p.name not in ('p', 'h1') :
                         break
                 else :
                     self.backend = 'OpenWRT'
@@ -245,58 +266,62 @@ class Guess (Compare_Mixin) :
 def main () :
     import sys
     import pickle
-    from optparse import OptionParser
 
-    cmd = OptionParser ()
-    cmd.add_option \
+    cmd = ArgumentParser ()
+    cmd.add_argument \
         ( "-d", "--debug"
         , dest    = "debug"
         , action  = "store_true"
         , help    = "Debug merging of pickle dumps"
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-l", "--local"
         , dest    = "local"
         , action  = "store_true"
         , help    = "Use local download for testing with file:// url"
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-o", "--output-pickle"
         , dest    = "output_pickle"
         , help    = "Optional pickle output file"
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-p", "--port"
         , dest    = "port"
         , help    = "Optional port number to fetch from"
-        , type    = "int"
+        , type    = int
         , default = 0
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-r", "--read-pickle"
         , dest    = "read_pickle"
         , help    = "Read old pickle files, merge and preserve information"
         , action  = "append"
         , default = []
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-V", "--version-statistics"
         , dest    = "version_statistics"
         , help    = "Output version information by spidered IP"
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-I", "--interface-info"
         , dest    = "interface_info"
         , help    = "Output interface information by spidered IP"
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-v", "--verbose"
         , dest    = "verbose"
         , action  = "count"
         , help    = "Show verbose results"
         )
-    (opt, args) = cmd.parse_args ()
-    if len (args) < 1 and not opt.read_pickle :
+    cmd.add_argument \
+        ( "ip"
+        , nargs   = "*"
+        , help    = "IP Address(es)"
+        )
+    opt = cmd.parse_args ()
+    if len (opt.ip) < 1 and not opt.read_pickle :
         cmd.print_help ()
         sys.exit (23)
     ipdict = {}
@@ -360,7 +385,7 @@ def main () :
                 if not v :
                     print ("%s: not existing in dump %s" % (k, fn))
 
-    for ip in args :
+    for ip in opt.ip :
         port = opt.port
         try :
             ip, port = ip.split (':', 1)

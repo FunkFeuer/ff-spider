@@ -32,7 +32,11 @@ class Version_Mixin (autosuper) :
         if div.get ('id') == 'header' and not self.bf_version :
             p = div.find ("p")
             if p is not None :
-                v = p.string.split (':', 1) [-1].split ('|', 1) [0]
+                if p.string is None :
+                    s = p.contents [0].strip ()
+                else :
+                    s = p.string.strip ()
+                v = s.split (':', 1) [-1].split ('|', 1) [0]
                 self.bf_version = v
     # end def try_get_version
 
@@ -53,7 +57,7 @@ class Version_Mixin (autosuper) :
                 if a.string.startswith ("Powered by LuCI") :
                     self.luci_version = lv = a.string
                     # The thing after a is not a tag
-                    if not a.next_sibling.name :
+                    if a.next_sibling and not a.next_sibling.name :
                         self.bf_version = a.next_sibling.strip ()
         if (lv and lv.startswith ('Powered by LuCI')) :
             lv = lv.split ('(', 1) [-1].split (')', 1) [0]

@@ -9,13 +9,12 @@
 
 from   _TFL.pyk           import pyk
 
-from   rsclib.HTML_Parse  import tag, Page_Tree
 from   rsclib.autosuper   import autosuper
 from   spider.common      import Interface, Inet4, Inet6, unroutable
-from   spider.common      import WLAN_Config
+from   spider.common      import WLAN_Config, Soup_Client
 from   spider.luci        import Version_Mixin
 
-class Status (Page_Tree, Version_Mixin) :
+class Status (Soup_Client, Version_Mixin) :
     url          = 'cgi-bin/luci/freifunk/status/status'
     retries      = 2
     timeout      = 10
@@ -29,10 +28,9 @@ class Status (Page_Tree, Version_Mixin) :
         )
 
     def parse (self) :
-        root  = self.tree.getroot ()
         self.wlans  = []
         self.routes = {}
-        for div in root.findall (".//%s" % tag ("div")) :
+        for div in self.soup.find_all ("div") :
             id = div.get ('id')
             if id == 'cbi-wireless' :
                 wlan_div = div
@@ -50,17 +48,17 @@ class Status (Page_Tree, Version_Mixin) :
             gw    = d.get ('gateway')
             if iface and gw :
                 self.routes [iface] = gw
-        self.set_version (root)
+        self.set_version (self.soup)
     # end def parse
 
     def tbl_iter (self, div) :
-        tbl = div.find (".//%s" % tag ("table"))
-        assert tbl.get ('class') == 'cbi-section-table'
+        tbl = div.find ("table")
+        assert 'cbi-section-table' in tbl.get ('class')
         d = {}
-        for tr in tbl :
-            if 'cbi-section-table-row' not in tr.get ('class').split () :
+        for tr in tbl.find_all (recursive = False) :
+            if 'cbi-section-table-row' not in (tr.get ('class') or []):
                 continue
-            for input in tr.findall (".//%s" % tag ('input')) :
+            for input in tr.find_all ('input') :
                 name = input.get ('id').split ('.') [-1]
                 val  = input.get ('value')
                 d [name] = val
@@ -71,20 +69,20 @@ class Status (Page_Tree, Version_Mixin) :
 
 # end class Status
 
-class Table_Iter (Page_Tree) :
+class Table_Iter (Soup_Client) :
 
     def table_iter (self) :
-        root  = self.tree.getroot ()
-        for div in root.findall (".//%s" % tag ("div")) :
-            if div.get ('id') == 'maincontent' :
-                break
-        tbl = div.find (".//%s" % tag ("table"))
+        div = self.soup.find ("div", id = 'maincontent')
+        tbl = div.find ("table")
         if tbl is None :
             return
-        for tr in tbl :
-            if tr [0].tag == tag ('th') :
+        for tr in tbl.find_all (recursive = False) :
+            child = tr.find ()
+            if child.name == 'th' :
                 continue
-            yield (self.tree.get_text (x) for x in tr)
+            yield (' '.join (td.strings).strip ()
+                   for td in tr.find_all (recursive = False)
+                  )
     # end def table_iter
 
 # end class Table_Iter

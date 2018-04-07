@@ -329,7 +329,11 @@ class Soup_Client (autosuper) :
     def __init__ (self, site, url = None) :
         self.__super.__init__ (site, url)
         self.site = site
-        self.url  = '/'.join ((site, url or self.url))
+        url = url or self.url
+        if url is not None :
+            self.url  = '/'.join ((site, url or self.url))
+        else :
+            self.url = site
         r = requests.get (self.url)
         if not r.ok :
             raise ValueError \

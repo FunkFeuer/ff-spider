@@ -7,11 +7,10 @@
 # <http://www.c-tanzer.at/license/bsd_3c.html>.
 # #*** </License> ***********************************************************#
 
-from   rsclib.HTML_Parse  import tag, Page_Tree
 from   rsclib.autosuper   import autosuper
-from   spider.common      import Interface, Inet4, Inet6
+from   spider.common      import Interface, Inet4, Inet6, Soup_Client
 
-class Config (Page_Tree) :
+class Config (Soup_Client) :
     url     = None
     retries = 2
     timeout = 10
@@ -28,41 +27,44 @@ class Config (Page_Tree) :
     def parse (self) :
         self.if_by_name = {}
         self.ips        = {}
-        root = self.tree.getroot ()
-        for div in root.findall (".//%s" % tag ('div')) :
+        for div in self.soup.find_all ('div') :
             if div.get ('id') == 'maintable' :
                 break
         else :
             raise Parse_Error ("Unable to find main table")
         # get version
-        vt = div.text
+        c  = div.contents [0]
+        assert c.name is None
+        vt = c.strip ()
         assert vt.startswith ('Version:')
         self.version = vt.split (' - ') [1].strip ()
         # we search for the first table after the h2 Interfaces element
         found = False
-        for e in div :
-            if e.tag == tag ('h2') and e.text == 'Interfaces' :
-                found = True
-            if found and e.tag == tag ('table') :
-                tbl  = e
-                name = None
-                d    = {}
-                n    = 0
-                for tr in tbl :
-                    if tr [0].tag == tag ('th') :
-                        if name and d.get ('status') == 'UP' :
-                            self.append_iface (n, name, ** d)
-                            n += 1
-                        name = tr [0].text
-                        d    = {}
-                    else :
-                        for td in tr :
-                            k, v = (x.strip () for x in td.text.split (':', 1))
-                            d [k.lower ()] = v
+        h2  = div.find ('h2', string = 'Interfaces')
+        tbl = h2
+        while tbl.name != 'table' :
+            tbl = tbl.next_sibling
+        name = None
+        d    = {}
+        n    = 0
+        # Broken html: some tr's don't have a /tr
+        for tr in tbl.find_all ('tr') :
+            child = tr.find ()
+            if child.name == 'th' :
                 if name and d.get ('status') == 'UP' :
                     self.append_iface (n, name, ** d)
                     n += 1
-                break
+                name = child.string
+                d    = {}
+            else :
+                for td in tr.find_all (recursive = False) :
+                    k, v = (x.strip ()
+                            for x in ' '.join (td.strings).split (':', 1)
+                           )
+                    d [k.lower ()] = v
+            if name and d.get ('status') == 'UP' :
+                self.append_iface (n, name, ** d)
+                n += 1
     # end def parse
 
 # end class Config

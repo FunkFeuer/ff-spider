@@ -12,10 +12,9 @@ from   __future__         import print_function
 from   _TFL.pyk           import pyk
 
 import re
-from   rsclib.HTML_Parse  import tag, Page_Tree
 from   rsclib.autosuper   import autosuper
 from   rsclib.stateparser import Parser
-from   spider.common      import unroutable, Net_Link
+from   spider.common      import unroutable, Net_Link, Soup_Client
 from   spider.common      import Inet4, Inet6, Interface, WLAN_Config
 
 pt_mac    = r'((?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})'
@@ -176,7 +175,7 @@ class WLAN_Config_Freifunk (WLAN_Config, Parser) :
 
 # end class WLAN_Config_Freifunk
 
-class Status (Page_Tree) :
+class Status (Soup_Client) :
     url       = 'cgi-bin-status.html'
     retries   = 2
     wlan_info = None
@@ -196,13 +195,10 @@ class Status (Page_Tree) :
     # end def _check_interface
 
     def parse (self) :
-        #print (self.tree_as_string ())
-        root = self.tree.getroot ()
-        for pre in root.findall (".//%s" % tag ("pre")) :
+        for pre in self.soup.find_all ("pre") :
             if pre.get ('id') == 'ifconfig' :
                 self.ifconfig = Interface_Config ()
-                self.ifconfig.parse (pre.text.split ('\n'))
-                #print (pre.text)
+                self.ifconfig.parse (' '.join (pre.strings).split ('\n'))
                 self.if_by_name = {}
                 self.ips        = {}
                 for k, v in pyk.iteritems (self.ifconfig.assignments) :
@@ -230,11 +226,11 @@ class Status (Page_Tree) :
                 break
         else :
             raise ValueError ("No interface config found")
-        for td in root.findall (".//%s" % tag ("td")) :
-            if (not td.text or 'SSID:' not in td.text) :
+        for td in self.soup.find_all ("td") :
+            if (not td.string or 'SSID:' not in td.string) :
                 continue
             self.wlan_info = WLAN_Config_Freifunk ()
-            self.wlan_info.parse (td.text.split ('\n'))
+            self.wlan_info.parse (td.string.split ('\n'))
             break
         wl_count = 0
         if self.wlan_info :
@@ -250,18 +246,18 @@ class Status (Page_Tree) :
                 wl_count += 1
 
         assert wl_count <= 1
-        for sm in root.findall (".//%s" % tag ("small")) :
-            if sm.text :
-                s = sm.text.strip ()
+        for sm in self.soup.find_all ("small") :
+            if sm.string :
+                s = sm.string.strip ()
                 if s.startswith ('v1.') or s.startswith ('1.') :
-                    self.version = sm.text
+                    self.version = sm.string
                     break
         if self.version == 'Unknown' :
-            for td in root.findall (".//%s" % tag ("td")) :
-                if td.text :
-                    s = td.text.strip ()
+            for td in self.soup.find_all ("td") :
+                if td.string :
+                    s = td.string.strip ()
                     if s.startswith ('v1.') or s.startswith ('Fonera-1') :
-                        self.version = td.text.strip ()
+                        self.version = td.string.strip ()
                         break
     # end def parse
 

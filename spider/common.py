@@ -335,6 +335,7 @@ class Soup_Client (autosuper) :
             raise ValueError \
                 ("Invalid Status: %s/%s" % (r.status_code, r.reason))
         self.soup = BeautifulSoup (r.content, 'html.parser')
+        #self.soup = BeautifulSoup (r.content, 'lxml')
         self.parse ()
     # end def __init__
 

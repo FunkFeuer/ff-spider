@@ -7,17 +7,18 @@
 # <http://www.c-tanzer.at/license/bsd_3c.html>.
 # #*** </License> ***********************************************************#
 
+from   __future__         import print_function, unicode_literals
 from   _TFL.pyk           import pyk
 
 import re
-from   rsclib.HTML_Parse  import tag, Page_Tree
+from   bs4                import BeautifulSoup
 from   rsclib.autosuper   import autosuper
 from   spider.common      import Interface, Inet4, Inet6, unroutable
-from   spider.common      import WLAN_Config
+from   spider.common      import WLAN_Config, Soup_Client
 from   spider.luci        import Version_Mixin
 from   olsr.common        import Topo_Entry, HNA_Entry
 
-class Interfaces (Page_Tree, Version_Mixin) :
+class Interfaces (Soup_Client, Version_Mixin) :
     url          = 'cgi-bin/luci/freifunk/olsr/interfaces'
     retries      = 2
     wlan_info    = None
@@ -32,20 +33,20 @@ class Interfaces (Page_Tree, Version_Mixin) :
         )
 
     def parse (self) :
-        root = self.tree.getroot ()
         self.if_by_name = {}
         self.ips        = {}
-        for div in root.findall (".//%s" % tag ("div")) :
+        for div in self.soup.find_all ("div") :
             self.try_get_version (div)
             if div.get ('id') == 'maincontent' and not self.if_by_name :
-                tbl = div.find (".//%s" % tag ("table"))
-                for n, tr in enumerate (tbl) :
-                    if tr [0].tag == tag ('th') :
-                        assert tr [0].text in ('Interface', 'Schnittstelle') \
-                            , tr [0].text
+                tbl = div.find ("table")
+                for n, tr in enumerate (tbl.find_all (recursive = False)) :
+                    child = tr.find ()
+                    if child.name == 'th' :
+                        assert child.string in ('Interface', 'Schnittstelle') \
+                            , child.string
                         continue
                     name, status, mtu, wlan, ip, mask, bcast = \
-                        (x.text for x in tr)
+                        (x.string for x in tr.find_all (recursive = False))
                     if name in self.if_by_name :
                         iface = self.if_by_name [name]
                     else :
@@ -64,7 +65,7 @@ class Interfaces (Page_Tree, Version_Mixin) :
                             if not unroutable (i4.ip) :
                                 self.if_by_name [name] = iface
                                 self.ips [i4] = True
-        self.set_version (root)
+        self.set_version (self.soup)
         if not self.if_by_name :
             raise ValueError ("No interface config found")
         bfw = Backfire_WLAN_Config (site = self.site)
@@ -76,7 +77,7 @@ class Interfaces (Page_Tree, Version_Mixin) :
 
 # end class Interfaces
 
-class Backfire_WLAN_Config (Page_Tree) :
+class Backfire_WLAN_Config (Soup_Client) :
     url          = 'cgi-bin/luci/freifunk/status'
     retries      = 2
     timeout      = 10
@@ -91,31 +92,29 @@ class Backfire_WLAN_Config (Page_Tree) :
             , pyk.decoded ('Drahtlosübersicht', 'utf-8')
             , pyk.decoded ('WLAN Übersicht',    'utf-8')
             )
-        root = self.tree.getroot ()
         self.wlans = []
-        for div in root.findall (".//%s" % tag ("div")) :
-            if div.get ('class') != 'cbi-map' :
+        for div in self.soup.find_all ("div") :
+            if 'cbi-map' not in (div.get ('class') or []) :
                 continue
-            if not len (div) or div [0].tag != tag ('h2') :
+            if not len (div) or div.find ().name != 'h2' :
                 continue
-            if div [0].text not in wlo :
+            if div.find ().string not in wlo :
                 continue
-            for tr in div.findall (".//%s" % tag ("tr")) :
-                cls = tr.get ('class') or ''
-                cls = cls.split ()
+            for tr in div.find_all ("tr") :
+                cls = tr.get ('class') or []
                 if 'cbi-section-table-row' not in cls :
                     continue
                 d = WLAN_Config ()
                 self.wlans.append (d)
-                for td in tr :
+                for td in tr.find_all (recursive = False) :
                     k = td.get ('id')
                     if k :
                         k = k.split ('-') [-1]
                         # special handling of signal picture which has
                         # the necessary info in a title attribute :-(
-                        if k == 'signal' and not td.text :
-                            if td [0].tag == tag ('img') :
-                                title = td [0].get ('title')
+                        if k == 'signal' and not td.string :
+                            if td.find ().name == 'img' :
+                                title = td.find ().get ('title')
                                 m = self.title_re.search (title)
                                 if m :
                                     d.set \
@@ -125,13 +124,13 @@ class Backfire_WLAN_Config (Page_Tree) :
                                     continue
                     else :
                         k = 'name'
-                    v = td.text
+                    v = td.string
                     d.set (** {k : v})
             break
     # end def parse
 # end class Backfire_WLAN_Config
 
-class MID_Parser (Page_Tree) :
+class MID_Parser (Soup_Client) :
 
     url = 'cgi-bin/luci/freifunk/olsr/mid/'
 
@@ -141,22 +140,25 @@ class MID_Parser (Page_Tree) :
     # end def __init__
 
     def parse (self) :
-        root = self.tree.getroot ()
-        for fs in root.findall (".//%s" % tag ("fieldset")) :
+        for fs in self.soup.find_all ("fieldset") :
             if fs.get ('class') == 'cbi-section' :
-                tbl = fs.find (".//%s" % tag ("table"))
+                tbl = fs.find ("table")
                 assert tbl.get ('class') == 'cbi-section-table'
                 for tr in tbl :
-                    if tr [0].tag == tag ('th') :
-                        assert tr [0].text == 'OLSR node'
+                    child = tr.find ()
+                    chch  = child.find ()
+                    next  = child.next_sibling
+                    nch   = next.find ()
+                    if child.name == 'th' :
+                        assert child.string == 'OLSR node'
                         continue
-                    assert tr [0][0].tag == tag ('a')
-                    self.content.add (tr [0][0].text, * tr [1].text.split (';'))
+                    assert chch.name == 'a'
+                    self.content.add (chch.string, * next.string.split (';'))
     # end def parse
 
 # end class MID_Parser
 
-class HNA_Parser (Page_Tree) :
+class HNA_Parser (Soup_Client) :
 
     url = 'cgi-bin/luci/freifunk/olsr/hna/'
 
@@ -166,22 +168,26 @@ class HNA_Parser (Page_Tree) :
     # end def __init__
 
     def parse (self) :
-        root = self.tree.getroot ()
-        for fs in root.findall (".//%s" % tag ("fieldset")) :
+        for fs in self.soup.find_all ("fieldset") :
             if fs.get ('class') == 'cbi-section' :
-                tbl = fs.find (".//%s" % tag ("table"))
+                tbl = fs.find ("table")
                 assert tbl.get ('class') == 'cbi-section-table'
                 for tr in tbl :
-                    if tr [0].tag == tag ('th') :
-                        assert tr [0].text == 'Announced network'
+                    child = tr.find ()
+                    next  = child.next_sibling
+                    schld = next.find ()
+                    if not child :
                         continue
-                    assert tr [1][0].tag == tag ('a')
-                    self.content.add (HNA_Entry (tr [0].text, tr [1][0].text))
+                    if child.name == 'th' :
+                        assert child.string == 'Announced network'
+                        continue
+                    assert schld.name == 'a'
+                    self.content.add (HNA_Entry (child.string, schld.string))
     # end def parse
 
 # end class HNA_Parser
 
-class Topo_Parser (Page_Tree) :
+class Topo_Parser (Soup_Client) :
 
     url = 'cgi-bin/luci/freifunk/olsr/topology/'
 
@@ -191,20 +197,23 @@ class Topo_Parser (Page_Tree) :
     # end def __init__
 
     def parse (self) :
-        root = self.tree.getroot ()
-        for fs in root.findall (".//%s" % tag ("fieldset")) :
+        for fs in self.soup.find_all ("fieldset") :
             if fs.get ('class') == 'cbi-section' :
-                tbl = fs.find (".//%s" % tag ("table"))
+                tbl = fs.find ("table")
                 assert tbl.get ('class') == 'cbi-section-table'
                 for tr in tbl :
-                    if tr [0].tag == tag ('th') :
-                        assert tr [0].text == 'OLSR node'
+                    child = tr.find ()
+                    chch  = child.find ()
+                    next  = child.next_sibling
+                    nch   = next.find ()
+                    if child.name == 'th' :
+                        assert child.string == 'OLSR node'
                         continue
-                    assert tr [0][0].tag == tag ('a')
-                    assert tr [1][0].tag == tag ('a')
-                    p = [tr [0][0].text, tr [1][0].text]
-                    for v in tr [2:] :
-                        v = v.text
+                    assert chch.name == 'a'
+                    assert nch.name  == 'a'
+                    p = [chch.string, nch.string]
+                    for v in tr.find_all (True) [2:] :
+                        v = v.string
                         if v == 'INFINITE' : v = 'inf'
                         v = float (v)
                         p.append (v)

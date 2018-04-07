@@ -7,8 +7,10 @@
 # <http://www.c-tanzer.at/license/bsd_3c.html>.
 # #*** </License> ***********************************************************#
 
+import requests
 from   _TFL.pyk           import pyk
 
+from   bs4                import BeautifulSoup
 from   rsclib.autosuper   import autosuper
 from   rsclib.IP_Address  import IP4_Address
 
@@ -321,3 +323,19 @@ class WLAN_Config (Compare_Mixin) :
     # end def __getattr__
 
 # end class WLAN_Config
+
+class Soup_Client (autosuper) :
+
+    def __init__ (self, site, url = None) :
+        self.__super.__init__ (site, url)
+        self.site = site
+        self.url  = '/'.join ((site, url or self.url))
+        r = requests.get (self.url)
+        if not r.ok :
+            raise ValueError \
+                ("Invalid Status: %s/%s" % (r.status_code, r.reason))
+        self.soup = BeautifulSoup (r.content, 'html.parser')
+        self.parse ()
+    # end def __init__
+
+# end class Soup_Client

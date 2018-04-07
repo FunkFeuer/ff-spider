@@ -32,22 +32,10 @@ from   argparse             import ArgumentParser
 
 # for pickle
 from   spider.common      import Interface, Net_Link, Inet4, Inet6, WLAN_Config
-from   spider.common      import Compare_Mixin
+from   spider.common      import Compare_Mixin, Soup_Client
 from   spider.freifunk    import Interface_Config, WLAN_Config_Freifunk
 
 site_template = 'http://%(ip)s'
-
-class Soup_Client (autosuper) :
-
-    def make_soup (self, url) :
-        r = requests.get (url)
-        if not r.ok :
-            raise ValueError \
-                ("Invalid Status: %s/%s" % (r.status_code, r.reason))
-        self.soup = BeautifulSoup (r.text, 'html.parser')
-    # end def make_soup
-
-# end class Soup_Client
 
 class First_Guess (Soup_Client) :
     url     = ''
@@ -59,14 +47,11 @@ class First_Guess (Soup_Client) :
     status_ok  = 0
 
     def __init__ (self, rqinfo, site, url, port = 0) :
-        self.__super.__init__ (site = site, url = url)
         self.rqinfo = rqinfo
         if port :
             site = "%s:%s" % (site, port)
         self.params = dict (request = self.rqinfo, site = site)
-        self.url    = '/'.join ((site, url))
-        self.make_soup (self.url)
-        self.parse ()
+        self.__super.__init__ (site = site, url = url)
     # end def __init__
 
     def parse (self) :
@@ -155,14 +140,9 @@ class Luci_Guess (Soup_Client) :
     html_charset = 'utf-8' # force utf-8 encoding
 
     def __init__ (self, rqinfo, site, url = None) :
-        self.__super.__init__ (site = site, url = url)
         self.rqinfo = rqinfo
         self.params = dict (request = self.rqinfo, site = site)
-        if url is None :
-            url = self.url
-        self.url = '/'.join ((site, url))
-        self.make_soup (self.url)
-        self.parse ()
+        self.__super.__init__ (site = site, url = url)
     # end def __init__
 
     def parse (self) :

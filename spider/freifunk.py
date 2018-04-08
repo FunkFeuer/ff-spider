@@ -195,35 +195,34 @@ class Status (Soup_Client) :
     # end def _check_interface
 
     def parse (self) :
-        for pre in self.soup.find_all ("pre") :
-            if pre.get ('id') == 'ifconfig' :
-                self.ifconfig = Interface_Config ()
-                self.ifconfig.parse (' '.join (pre.strings).split ('\n'))
-                self.if_by_name = {}
-                self.ips        = {}
-                for k, v in pyk.iteritems (self.ifconfig.assignments) :
-                    v = v.strip ()
-                    if not v :
-                        continue
-                    if k == 'lan_ifname' :
-                        is_wlan = False
-                    elif k == 'wan_ifname' :
-                        is_wlan = False
-                    elif k.startswith ('wl') and k.endswith ('_ifname') :
-                        is_wlan = True
-                    elif k == 'wifi_ifname' :
-                        is_wlan = True
-                    else :
-                        continue
-                    # unused interface name:
-                    if v not in self.ifconfig.if_by_name :
-                        continue
-                    iface = self.ifconfig.if_by_name [v]
-                    self._check_interface (iface, is_wlan)
-                for iface in self.ifconfig.interfaces :
-                    if iface.name not in self.if_by_name :
-                        self._check_interface (iface)
-                break
+        for pre in self.soup.find_all ("pre", id = 'ifconfig') :
+            self.ifconfig = Interface_Config ()
+            self.ifconfig.parse (' '.join (pre.strings).split ('\n'))
+            self.if_by_name = {}
+            self.ips        = {}
+            for k, v in pyk.iteritems (self.ifconfig.assignments) :
+                v = v.strip ()
+                if not v :
+                    continue
+                if k == 'lan_ifname' :
+                    is_wlan = False
+                elif k == 'wan_ifname' :
+                    is_wlan = False
+                elif k.startswith ('wl') and k.endswith ('_ifname') :
+                    is_wlan = True
+                elif k == 'wifi_ifname' :
+                    is_wlan = True
+                else :
+                    continue
+                # unused interface name:
+                if v not in self.ifconfig.if_by_name :
+                    continue
+                iface = self.ifconfig.if_by_name [v]
+                self._check_interface (iface, is_wlan)
+            for iface in self.ifconfig.interfaces :
+                if iface.name not in self.if_by_name :
+                    self._check_interface (iface)
+            break
         else :
             raise ValueError ("No interface config found")
         for td in self.soup.find_all ("td") :

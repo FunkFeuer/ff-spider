@@ -183,7 +183,10 @@ class Interface (Compare_Mixin) :
         for i in self.inet6 :
             r.append (str (i))
         if self.wlan_info :
-            r.append (str (self.wlan_info))
+            try :
+                r.append (str (self.wlan_info))
+            except UnicodeEncodeError :
+                pass
         return "\n    ".join (r)
     # end def __str__
     __repr__ = __str__

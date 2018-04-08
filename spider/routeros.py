@@ -24,6 +24,7 @@ class Routes (Soup_Client) :
         self.ip_dev = {}
         for pre in self.soup.find_all ("pre") :
             state = 0
+            devname = None
             for a in pre.find_all ('a', recursive = False) :
                 if state == 0 :
                     ns = a.next_sibling

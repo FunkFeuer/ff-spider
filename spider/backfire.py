@@ -67,7 +67,7 @@ class Interfaces (Soup_Client, Version_Mixin) :
                                 self.ips [i4] = True
         self.set_version (self.soup)
         if not self.if_by_name :
-            raise ValueError ("No interface config found")
+            return
         bfw = Backfire_WLAN_Config (site = self.site)
         for d in bfw.wlans :
             if d.name in self.if_by_name :

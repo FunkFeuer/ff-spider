@@ -58,9 +58,14 @@ class Version_Mixin (autosuper) :
         # New 2014-Beta (sic) backfire has changed the version info :-(
         if lv is None :
             footer = None
-            for a in root.find_all ("a") :
-                if a.get ('href') == 'http://luci.subsignal.org/' :
-                    break
+            a = None
+            a = root.find ("a", href = 'http://luci.subsignal.org/')
+            if a is None :
+                footer = root.find ('footer')
+                if footer :
+                    a = footer.find ('a')
+            if a is None :
+                a = root.find ("a", string = 'Powered by LuCI')
             if a is not None :
                 if a.string.startswith ("Powered by LuCI") :
                     self.luci_version = lv = a.string

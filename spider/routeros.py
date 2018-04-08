@@ -158,7 +158,8 @@ class Router_OS (autosuper) :
             # check own ip
             n  = 'unknown'
             i4 = Inet4 (self.request ['ip'], None, None, iface = n)
-            assert i4 in ips
+            if i4 not in ips :
+                ips [i4] = 1
 
             self.request ['ips']        = ips
             self.request ['interfaces'] = interfaces

@@ -25,7 +25,9 @@ class Version_Mixin (autosuper) :
                     if a.string.startswith ("Powered by LuCI") :
                         self.luci_version = a.string
         if 'header_right' in (div.get ('class') or []) :
-            self.bf_version = div.string
+            s = div.contents [0]
+            if not s.name :
+                self.bf_version = s.strip ()
         if 'hostinfo' in (div.get ('class') or []) :
             assert self.bf_version is None
             self.bf_version = div.string.split ('|') [0].strip ()

@@ -53,7 +53,7 @@ class Version_Mixin (autosuper) :
             ps = root.find_all ("p")
             if ps :
                 p = ps [-1]
-            if p and 'luci' in p.get ('class') :
+            if p and p.name and 'luci' in (p.get ('class') or []) :
                 lv = self.luci_version = ' '.join (p.stripped_strings)
         # New 2014-Beta (sic) backfire has changed the version info :-(
         if lv is None :

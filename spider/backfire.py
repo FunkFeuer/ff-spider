@@ -39,32 +39,33 @@ class Interfaces (Soup_Client, Version_Mixin) :
             self.try_get_version (div)
             if div.get ('id') == 'maincontent' and not self.if_by_name :
                 tbl = div.find ("table")
-                for n, tr in enumerate (tbl.find_all (recursive = False)) :
-                    child = tr.find ()
-                    if child.name == 'th' :
-                        assert child.string in ('Interface', 'Schnittstelle') \
-                            , child.string
-                        continue
-                    name, status, mtu, wlan, ip, mask, bcast = \
-                        (x.string for x in tr.find_all (recursive = False))
-                    if name in self.if_by_name :
-                        iface = self.if_by_name [name]
-                    else :
-                        iface = Interface (n, name, mtu)
-                        iface.is_wlan = self.yesno.get (wlan, False)
-                    if status == 'DOWN' :
-                        continue
-                    # append IP address to interface if there is one
-                    if ip is not None :
-                        if ':' in ip :
-                            i6 = Inet6 (ip, mask, bcast, iface = name)
-                            iface.append_inet6 (i6)
+                if tbl :
+                    for n, tr in enumerate (tbl.find_all (recursive = False)) :
+                        child = tr.find ()
+                        if child.name == 'th' :
+                            l = ('Interface', 'Schnittstelle')
+                            assert child.string in l, child.string
+                            continue
+                        name, status, mtu, wlan, ip, mask, bcast = \
+                            (x.string for x in tr.find_all (recursive = False))
+                        if name in self.if_by_name :
+                            iface = self.if_by_name [name]
                         else :
-                            i4 = Inet4 (ip, mask, bcast, iface = name)
-                            iface.append_inet4 (i4)
-                            if not unroutable (i4.ip) :
-                                self.if_by_name [name] = iface
-                                self.ips [i4] = True
+                            iface = Interface (n, name, mtu)
+                            iface.is_wlan = self.yesno.get (wlan, False)
+                        if status == 'DOWN' :
+                            continue
+                        # append IP address to interface if there is one
+                        if ip is not None :
+                            if ':' in ip :
+                                i6 = Inet6 (ip, mask, bcast, iface = name)
+                                iface.append_inet6 (i6)
+                            else :
+                                i4 = Inet4 (ip, mask, bcast, iface = name)
+                                iface.append_inet4 (i4)
+                                if not unroutable (i4.ip) :
+                                    self.if_by_name [name] = iface
+                                    self.ips [i4] = True
         self.set_version (self.soup)
         if not self.if_by_name :
             return

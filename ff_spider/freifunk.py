@@ -14,8 +14,8 @@ from   _TFL.pyk           import pyk
 import re
 from   rsclib.autosuper   import autosuper
 from   rsclib.stateparser import Parser
-from   spider.common      import unroutable, Net_Link, Soup_Client
-from   spider.common      import Inet4, Inet6, Interface, WLAN_Config
+from   ff_spider.common   import unroutable, Net_Link, Soup_Client
+from   ff_spider.common   import Inet4, Inet6, Interface, WLAN_Config
 
 pt_mac    = r'((?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})'
 

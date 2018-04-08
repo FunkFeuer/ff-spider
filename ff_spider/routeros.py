@@ -12,8 +12,8 @@ from   __future__         import print_function
 from   _TFL.pyk           import pyk
 
 from   rsclib.autosuper   import autosuper
-from   spider.common      import Interface, Inet4, unroutable, Soup_Client
-from   spider.common      import Parse_Error
+from   ff_spider.common   import Interface, Inet4, unroutable, Soup_Client
+from   ff_spider.common   import Parse_Error
 
 class Routes (Soup_Client) :
     retries      = 2

@@ -8,7 +8,7 @@
 # #*** </License> ***********************************************************#
 
 from   rsclib.autosuper   import autosuper
-from   spider.common      import Interface, Inet4, Inet6, Soup_Client
+from   ff_spider.common   import Interface, Inet4, Inet6, Soup_Client
 
 class Config (Soup_Client) :
     url     = None

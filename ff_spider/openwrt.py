@@ -10,9 +10,9 @@
 from   _TFL.pyk           import pyk
 
 from   rsclib.autosuper   import autosuper
-from   spider.common      import Interface, Inet4, Inet6, unroutable
-from   spider.common      import WLAN_Config, Soup_Client
-from   spider.luci        import Version_Mixin
+from   ff_spider.common   import Interface, Inet4, Inet6, unroutable
+from   ff_spider.common   import WLAN_Config, Soup_Client
+from   ff_spider.luci     import Version_Mixin
 
 class Status (Soup_Client, Version_Mixin) :
     url          = 'cgi-bin/luci/freifunk/status/status'

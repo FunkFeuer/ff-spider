@@ -1,0 +1,5 @@
+#!/usr/bin/python
+
+from ff_spider.spiderpool import main
+
+main ()

@@ -10,15 +10,18 @@ from   __future__      import print_function
 from   _TFL.pyk        import pyk
 
 import os
+import pickle
+import sys
 
+from argparse          import ArgumentParser
 from multiprocessing   import Pool, Manager
 from rsclib.autosuper  import autosuper
 from rsclib.execute    import Log
 from rsclib.timeout    import Timeout, Timeout_Error
 from rsclib.HTML_Parse import Retries_Exceeded
 from rsclib.IP_Address import IP4_Address
-from olsr.parser       import get_olsr_container
-from spider.parser     import Guess, site_template
+from ff_olsr.parser    import get_olsr_container
+from ff_spider.parser  import Guess, site_template
 from itertools         import islice
 from logging           import INFO
 from gzip              import GzipFile
@@ -171,70 +174,64 @@ class Spider (Log) :
 
 # end def Spider
 
-if __name__ == '__main__' :
-    import pickle
-    import sys
-    from optparse import OptionParser
 
-    cmd = OptionParser ()
-    cmd.add_option \
+def main () :
+    cmd = ArgumentParser ()
+    cmd.add_argument \
         ( "-D", "--debug"
         , dest    = "debug"
         , help    = "Turn on debug logging"
         , action  = "store_true"
         , default = False
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-d", "--dump"
         , dest    = "dump"
         , help    = "Destination file of pickle dump, default: %default"
         , default = "Funkfeuer-spider-pickle.dump"
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-i", "--ip-port"
         , dest    = "ip_port"
         , action  = "append"
         , help    = "IP-Addres:Port combination with non-standard port"
         , default = []
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-n", "--limit-devices"
         , dest    = "limit_devices"
         , help    = "Limit spidering to given number of devices"
-        , type    = "int"
+        , type    = int
         , default = 0
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-p", "--processes"
         , dest    = "processes"
         , help    = "Use given number of processes, default: %default"
-        , type    = "int"
+        , type    = int
         , default = 20
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-o", "--olsr-file"
         , dest    = "olsr_file"
         , help    = "File or Backfire-URL containing OLSR information, "
                     "default: %default"
         , default = "olsr/txtinfo.txt"
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-t", "--timeout"
         , dest    = "timeout"
         , help    = "Timout in seconds for subprocesses, default: %default"
-        , type    = "int"
+        , type    = int
         , default = 180
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-v", "--verbose"
         , dest    = "verbose"
         , help    = "Show verbose results"
         , action  = "count"
         )
-    (opt, args) = cmd.parse_args ()
-    if len (args) :
-        cmd.print_help ()
-        sys.exit (23)
+    opt = cmd.parse_args ()
     sp = Spider \
         ( opt.olsr_file
         , opt.processes
@@ -259,3 +256,7 @@ if __name__ == '__main__' :
                 print (k, v)
     except Exception as err :
         sp.log_exception ()
+# end def main
+
+if __name__ == '__main__' :
+    main ()

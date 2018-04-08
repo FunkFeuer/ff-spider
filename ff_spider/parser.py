@@ -15,25 +15,25 @@ from   _TFL.pyk             import pyk
 import os
 import re
 import requests
-from   stat                 import ST_MTIME
-from   csv                  import DictWriter
-from   gzip                 import GzipFile
-from   datetime             import datetime
-from   bs4                  import BeautifulSoup
-from   rsclib.stateparser   import Parser
-from   rsclib.autosuper     import autosuper
-from   rsclib.IP_Address    import IP4_Address
-from   spider.freifunk      import Freifunk
-from   spider.olsr_httpinfo import OLSR
-from   spider.backfire      import Backfire
-from   spider.openwrt       import OpenWRT
-from   spider.routeros      import Router_OS
-from   argparse             import ArgumentParser
+from   stat                    import ST_MTIME
+from   csv                     import DictWriter
+from   gzip                    import GzipFile
+from   datetime                import datetime
+from   bs4                     import BeautifulSoup
+from   rsclib.stateparser      import Parser
+from   rsclib.autosuper        import autosuper
+from   rsclib.IP_Address       import IP4_Address
+from   ff_spider.freifunk      import Freifunk
+from   ff_spider.olsr_httpinfo import OLSR
+from   ff_spider.backfire      import Backfire
+from   ff_spider.openwrt       import OpenWRT
+from   ff_spider.routeros      import Router_OS
+from   argparse                import ArgumentParser
 
 # for pickle
-from   spider.common      import Interface, Net_Link, Inet4, Inet6, WLAN_Config
-from   spider.common      import Compare_Mixin, Soup_Client
-from   spider.freifunk    import Interface_Config, WLAN_Config_Freifunk
+from   ff_spider.common        import Interface, Net_Link, Inet4, Inet6
+from   ff_spider.common        import Compare_Mixin, Soup_Client, WLAN_Config
+from   ff_spider.freifunk      import Interface_Config, WLAN_Config_Freifunk
 
 site_template = 'http://%(ip)s'
 
@@ -463,5 +463,4 @@ def main () :
 # end def main
 
 if __name__ == '__main__' :
-    import spider.parser
-    spider.parser.main ()
+    main ()

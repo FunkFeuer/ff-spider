@@ -13,10 +13,10 @@ from   _TFL.pyk           import pyk
 import re
 from   bs4                import BeautifulSoup
 from   rsclib.autosuper   import autosuper
-from   spider.common      import Interface, Inet4, Inet6, unroutable
-from   spider.common      import WLAN_Config, Soup_Client
-from   spider.luci        import Version_Mixin
-from   olsr.common        import Topo_Entry, HNA_Entry
+from   ff_spider.common   import Interface, Inet4, Inet6, unroutable
+from   ff_spider.common   import WLAN_Config, Soup_Client
+from   ff_spider.luci     import Version_Mixin
+from   ff_olsr.common     import Topo_Entry, HNA_Entry
 
 class Interfaces (Soup_Client, Version_Mixin) :
     url          = 'cgi-bin/luci/freifunk/olsr/interfaces'

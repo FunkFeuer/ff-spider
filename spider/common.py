@@ -334,7 +334,7 @@ class Soup_Client (autosuper) :
             self.url  = '/'.join ((site, url or self.url))
         else :
             self.url = site
-        r = requests.get (self.url)
+        r = requests.get (self.url, verify = False)
         if not r.ok :
             raise ValueError \
                 ("Invalid Status: %s/%s" % (r.status_code, r.reason))

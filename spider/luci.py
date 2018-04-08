@@ -30,7 +30,11 @@ class Version_Mixin (autosuper) :
                 self.bf_version = s.strip ()
         if 'hostinfo' in (div.get ('class') or []) :
             assert self.bf_version is None
-            self.bf_version = div.string.split ('|') [0].strip ()
+            s = div.contents [0].split ('|')
+            if len (s) > 1 and 'Backfire' in s [1] :
+                self.bf_version = s [1].strip ()
+            else :
+                self.bf_version = s [0].strip ()
         if div.get ('id') == 'header' and not self.bf_version :
             p = div.find ("p")
             if p is not None :
@@ -45,9 +49,11 @@ class Version_Mixin (autosuper) :
     def set_version (self, root) :
         lv = self.luci_version
         if lv is None :
-            last_child = root.find_all (recursive = False) [-1]
-            p = last_child.find_all (recursive = False) [-1]
-            if p.name == 'p' and 'luci' in p.get ('class') :
+            p  = None
+            ps = root.find_all ("p")
+            if ps :
+                p = ps [-1]
+            if p and 'luci' in p.get ('class') :
                 lv = self.luci_version = ' '.join (p.stripped_strings)
         # New 2014-Beta (sic) backfire has changed the version info :-(
         if lv is None :

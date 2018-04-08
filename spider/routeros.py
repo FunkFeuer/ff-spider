@@ -13,6 +13,7 @@ from   _TFL.pyk           import pyk
 
 from   rsclib.autosuper   import autosuper
 from   spider.common      import Interface, Inet4, unroutable, Soup_Client
+from   spider.common      import Parse_Error
 
 class Routes (Soup_Client) :
     retries      = 2
@@ -113,6 +114,8 @@ class Router_OS (autosuper) :
         if 'interfaces' in self.request or 'ips' in self.request :
             rt = Routes  (site = site, url = url + '?post_routes=%s' % rtparm)
             dt = Details (site = site, url = url + '?post_olsr=1')
+            if not getattr (rt, 'version', None) :
+                raise Parse_Error ('No version, probably login of router-os')
             self.version = rt.version
             interfaces   = {}
             ips          = {}

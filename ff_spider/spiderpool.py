@@ -18,7 +18,6 @@ from multiprocessing   import Pool, Manager
 from rsclib.autosuper  import autosuper
 from rsclib.execute    import Log
 from rsclib.timeout    import Timeout, Timeout_Error
-from rsclib.HTML_Parse import Retries_Exceeded
 from rsclib.IP_Address import IP4_Address
 from ff_olsr.parser    import get_olsr_container
 from ff_spider.parser  import Guess, site_template
@@ -82,11 +81,6 @@ class Worker (Log, Timeout) :
                 self.disable_alarm ()
                 self.log.debug ("Timeout")
                 self.result_dict [self.ip] = ('Timeout_Error', err)
-                return
-            except Retries_Exceeded as err :
-                self.disable_alarm ()
-                self.log.debug ("Retries exceeded")
-                self.result_dict [self.ip] = ('Retries_Exceeded', err)
                 return
             except Exception as err :
                 self.disable_alarm ()

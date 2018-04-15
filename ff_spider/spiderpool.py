@@ -181,7 +181,7 @@ def main () :
     cmd.add_argument \
         ( "-d", "--dump"
         , dest    = "dump"
-        , help    = "Destination file of pickle dump, default: %default"
+        , help    = "Destination file of pickle dump, default: %(default)s"
         , default = "Funkfeuer-spider-pickle.dump"
         )
     cmd.add_argument \
@@ -201,7 +201,7 @@ def main () :
     cmd.add_argument \
         ( "-p", "--processes"
         , dest    = "processes"
-        , help    = "Use given number of processes, default: %default"
+        , help    = "Use given number of processes, default: %(default)s"
         , type    = int
         , default = 20
         )
@@ -209,13 +209,13 @@ def main () :
         ( "-o", "--olsr-file"
         , dest    = "olsr_file"
         , help    = "File or Backfire-URL containing OLSR information, "
-                    "default: %default"
+                    "default: %(default)s"
         , default = "olsr/txtinfo.txt"
         )
     cmd.add_argument \
         ( "-t", "--timeout"
         , dest    = "timeout"
-        , help    = "Timout in seconds for subprocesses, default: %default"
+        , help    = "Timout in seconds for subprocesses, default: %(default)s"
         , type    = int
         , default = 180
         )
